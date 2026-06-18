@@ -28,12 +28,16 @@ on:
         required: true
         default: '2'
 
+env:
+  # Opts into Node 24 natively to silence Node 20 deprecation warnings [1.1.1, 1.2.6]
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
     
     permissions:
-      contents: write # Allows pushing the updated state and encrypted zips back to the repository
+      contents: write 
 
     steps:
     - name: Checkout Repository
@@ -45,7 +49,6 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        
 
     - name: Install Dependencies
       run: |
@@ -65,15 +68,24 @@ jobs:
           --total-phases ${{ github.event.inputs.total-phases }} \
           --concurrency ${{ github.event.inputs.concurrency }}
 
-    # Deploys (commits) state updates and encrypted books straight back to the repository branch
     - name: Deploy Output Files to Repo
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         
-        # Stage responses directory and pipeline outputs folder containing the encrypted books
-        git add local_responses/ pipeline_outputs/
+        # Safely stage local_responses only if the directory exists and is not empty [1.2.8]
+        if [ -d "local_responses" ] && [ "$(ls -A local_responses)" ]; then
+          echo "Staging local_responses directory..."
+          git add local_responses/
+        fi
         
+        # Safely stage pipeline_outputs only if the directory exists and is not empty [1.2.8]
+        if [ -d "pipeline_outputs" ] && [ "$(ls -A pipeline_outputs)" ]; then
+          echo "Staging pipeline_outputs directory..."
+          git add pipeline_outputs/
+        fi
+        
+        # Only commit and push if there are actual unstaged changes to avoid workflow errors
         if git diff-index --quiet HEAD --; then
           echo "No new files or progress state updates to commit."
         else
