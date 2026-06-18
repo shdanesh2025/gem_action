@@ -57,7 +57,8 @@ pipeline_config = {
 # Load API keys from environment variable (set via GitHub Secrets)
 api_keys_env = os.environ.get("GEMINI_API_KEYS", "")
 if api_keys_env:
-    pipeline_config["API_KEYS"] = [k.strip() for k in api_keys_env.split(",") if k.strip()]
+    # Strip standard whitespace and any leading/trailing double or single quotes
+    pipeline_config["API_KEYS"] = [k.strip().strip('"').strip("'") for k in api_keys_env.split(",") if k.strip()]
 else:
     print("WARNING: No GEMINI_API_KEYS environment variable found. Checking fallback keys.")
     pipeline_config["API_KEYS"] = []
