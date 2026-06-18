@@ -2,6 +2,7 @@
 import os
 import sys
 import glob
+import json
 import shutil
 import zipfile
 import tempfile
@@ -172,6 +173,57 @@ async def main():
 
     importlib.invalidate_caches()
     from pipeline_core.engine import Orchestrator
+
+    # ==========================================
+    # 🔍 RUNTIME DIAGNOSTICS BLOCK
+    # ==========================================
+    print("\n=== 🔍 RUNTIME DIAGNOSTICS ===")
+    
+    siblings_file_path = os.path.join(local_workdir, "siblings.json")
+    if os.path.exists(siblings_file_path):
+        with open(siblings_file_path, "r", encoding="utf-8") as f:
+            try:
+                groups_list = json.load(f)
+                print(f"✅ 'siblings.json' loaded successfully. Total groups found: {len(groups_list)}")
+            except Exception as e:
+                print(f"❌ Failed to parse 'siblings.json': {e}")
+                groups_list = []
+    else:
+        print(f"❌ 'siblings.json' NOT found at: {siblings_file_path}")
+        groups_list = []
+
+    state_file_path = os.path.join(OUTPUT_DIR, "spelling_progress_state.json")
+    if os.path.exists(state_file_path):
+        with open(state_file_path, "r", encoding="utf-8") as f:
+            try:
+                loaded_state = json.load(f)
+                completed_count = len(loaded_state.get("completed_ids", []))
+                failed_count = len(loaded_state.get("failed_ids", []))
+                print(f"ℹ️ Existing state file detected. Completed IDs: {completed_count}, Failed IDs: {failed_count}")
+            except Exception as e:
+                print(f"⚠️ State file found but could not be parsed: {e}")
+                loaded_state = {}
+    else:
+        print("ℹ️ No existing 'spelling_progress_state.json' found. Starting a fresh run.")
+        loaded_state = {}
+
+    # Calculate index bounds based on phases
+    if groups_list:
+        start_idx = (len(groups_list) * (args.phase - 1)) // args.total_phases
+        end_idx = (len(groups_list) * args.phase) // args.total_phases
+        sliced_groups = groups_list[start_idx:end_idx]
+        print(f"ℹ️ Phase Calculation: Phase {args.phase}/{args.total_phases}")
+        print(f"   Slice boundaries: Index [{start_idx}] to [{end_idx}]")
+        print(f"   Groups in this phase: {len(sliced_groups)}")
+        
+        # Check remaining items
+        completed_ids = set(loaded_state.get("completed_ids", []))
+        failed_ids = set(loaded_state.get("failed_ids", []))
+        remaining_groups = [g for g in sliced_groups if any(item_id not in completed_ids and item_id not in failed_ids for item_id in g)]
+        print(f"   Groups remaining with work left to do: {len(remaining_groups)}")
+    
+    print("==============================\n")
+    # ==========================================
 
     try:
         orchestrator = Orchestrator(pipeline_config)
