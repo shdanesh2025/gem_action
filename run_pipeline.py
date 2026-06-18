@@ -27,7 +27,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Define configurations to pass to the Orchestrator
 pipeline_config = {
-    "PIPELINE_CONFIG_FILENAME": os.path.join(args.project, args.config),
+    "PIPELINE_CONFIG_FILENAME": args.config,
     "SELECTED_MODEL": args.model,
     "MOUNT_GDRIVE": False,
     "GDRIVE_ZIP_CORE_PATH": os.path.join(WORKSPACE_DIR, "pipeline_core.zip"),
